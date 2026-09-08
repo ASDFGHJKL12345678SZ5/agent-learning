@@ -1,0 +1,6 @@
+# Python 缓存
+__pycache__/
+*.pyc
+
+# 个人数据文件（每次运行都会变，不适合进 git）
+todos.json
