@@ -1,0 +1,34 @@
+services:
+  # ---------- 服务1：MySQL 数据库 ----------
+  db:
+    image: mysql:8                     # 用官方 mysql 镜像
+    environment:                       # MySQL 官方约定的环境变量（会自动建库建用户）
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: blog
+      MYSQL_USER: bloguser
+      MYSQL_PASSWORD: blogpass
+    volumes:
+      - db_data:/var/lib/mysql         # 数据持久化，容器删了数据还在
+    healthcheck:                       # 健康检查：确认 MySQL 真的能用了
+      # 注意用 127.0.0.1（走 TCP）而不是 localhost（走 socket）：
+      # localhost 会在 MySQL 初始化阶段就"提前"返回成功，导致 app 过早启动。
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  # ---------- 服务2：你的 FastAPI 应用 ----------
+  app:
+    build: .                           # 用当前目录的 Dockerfile 构建
+    ports:
+      - "8000:8000"                    # 电脑8000 -> 容器8000
+    environment:
+      # 关键：主机名写服务名 db（不是 localhost！）
+      DATABASE_URL: mysql+pymysql://bloguser:blogpass@db:3306/blog
+    depends_on:
+      db:
+        condition: service_healthy     # 等 db 健康后再启动 app
+
+volumes:
+  db_data:                             # 声明命名卷，供上面的 db 服务使用

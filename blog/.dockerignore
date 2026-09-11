@@ -1,0 +1,8 @@
+# 构建镜像时不发送这些文件（语法和 .gitignore 一样）
+.venv/
+venv/
+__pycache__/
+*.pyc
+.git/
+.env
+blog.db
