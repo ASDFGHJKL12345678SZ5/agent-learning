@@ -35,7 +35,8 @@ url = f"{BASE_URL}/chat/completions"
 #   "Content-Type" : "application/json"       ← 告诉服务器"我发的是 JSON"
 # 写法就是普通的 dict，和你第1阶段学的字典一模一样。
 headers = {
-    # 你来补
+   "Authorization": "Bearer " + API_KEY,      
+    "Content-Type" : "application/json"       
 }
 
 
@@ -46,7 +47,9 @@ headers = {
 #                  这里先只放一条，role 填 "user"，content 写一句你想问的话
 #   "temperature": 先填 0（我们昨天刚学的零温度）
 payload = {
-    # 你来补
+    "model"      : MODEL,
+    "messages"   : [{"role": "user", "content": "你好，你能帮我写一个 Python 程序吗？"}],
+    "temperature": 0
 }
 
 
