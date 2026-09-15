@@ -14,6 +14,14 @@ todos.json
 .env
 *.env
 
+# ---- 对话历史（私有数据，别提交）----
+# 明天的命令行 ChatGPT 会把聊天记录写到这里，提前挡掉
+logs/
+llm_learn/logs/
+llm_learn/chat_history*.json
+llm_learn/chat_history*.jsonl
+llm_learn/chat_history*.txt
+
 # ---- 编辑器 / 系统 ----
 .vscode/
 .idea/
