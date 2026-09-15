@@ -99,9 +99,12 @@ prompt_4 = f"""请把以下技术说明书里的信息，整理成 JSON 格式�
    - "max_load" 
    - "net_weight" 
    - "colors" 
-   - "certificates" (string)        
+   - "certificates" (string)    
+   - "warranty" (string)
+   - "use_case" (string)
+   - "price_cny" (number)    
 2.只输出JSON本身，不要任何解释，不要markdown代码块标记
-3.多若说明书未提供某字段的信息，该字段填空字符串""不要推测不要编造
+
 """
 
 
