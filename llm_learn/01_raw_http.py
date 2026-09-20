@@ -72,7 +72,32 @@ print("\n===== 原始响应 JSON（格式化后）=====")
 print(json.dumps(data, ensure_ascii=False, indent=2))
 
 print("\n===== 只取正文 =====")
+# choices 不是我们猜出来的，而是 OpenAI 兼容接口约定的响应字段：
+# 一次请求可以返回一个或多个候选答案，所以它是列表；[0] 取第一个候选。
+# 具体字段名应以接口文档为准，也可以先打印上面的完整 JSON 来确认结构。
 print(data["choices"][0]["message"]["content"])
 
 print("\n===== 这次用了多少 token =====")
 print(data["usage"])
+
+# 模拟输出示例（实际内容会因模型和接口而不同）：
+# HTTP 状态码: 200
+#
+# ===== 原始响应 JSON（格式化后）=====
+# {
+#   "choices": [
+#     {
+#       "message": {
+#         "role": "assistant",
+#         "content": "当然可以！请告诉我你想实现什么功能。"
+#       }
+#     }
+#   ],
+#   "usage": {"prompt_tokens": 20, "completion_tokens": 12, "total_tokens": 32}
+# }
+#
+# ===== 只取正文 =====
+# 当然可以！请告诉我你想实现什么功能。
+#
+# ===== 这次用了多少 token =====
+# {'prompt_tokens': 20, 'completion_tokens': 12, 'total_tokens': 32}

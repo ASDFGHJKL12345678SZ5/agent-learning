@@ -38,9 +38,18 @@ API_KEY = os.getenv("LLM_API_KEY")
 BASE_URL = os.getenv("LLM_BASE_URL")
 MODEL = os.getenv("LLM_MODEL")
 
+# ---------- Embedding 供应商（和上面的 LLM 分开配置）----------
+# ⭐ 为什么用不同前缀？
+#    因为这是【两家不同的公司】：聊天用 DeepSeek，向量用智谱。
+#    它们的地址、密钥、模型名完全不同。
+#    用 LLM_ / EMB_ 两个前缀隔开，谁也不会覆盖谁。
+EMB_BASE_URL = os.getenv("EMB_BASE_URL")
+EMB_API_KEY = os.getenv("EMB_API_KEY")
+EMB_MODEL = os.getenv("EMB_MODEL")
+
 
 def chat(messages: list, temperature: float = 0, model: str | None = None,
-         verbose: bool = False) -> dict:
+         verbose: bool = False,tools :list | None=None) -> dict:
     """最底层的一个函数：给 messages 列表，返回服务器返回的**完整 dict**。
 
     什么时候用它？当你要看正文以外的字段时（usage 花了多少 token、
@@ -61,6 +70,8 @@ def chat(messages: list, temperature: float = 0, model: str | None = None,
         "messages": messages,
         "temperature": temperature,
     }
+    if tools:
+        payload["tools"]=tools
 
     resp = httpx.post(url, headers=headers, json=payload, timeout=120)
 
@@ -69,12 +80,56 @@ def chat(messages: list, temperature: float = 0, model: str | None = None,
         print(resp.text)
         raise SystemExit(1)
 
+    # 将服务器返回的 JSON 响应解析成 Python 字典（通常包含 choices、usage 等字段）。
     data = resp.json()
 
     if verbose:
         print(f"[用了 {data['usage']['total_tokens']} tokens]")
 
     return data
+
+
+def get_embedding(text: str | list[str], model: str | None = None) -> list:
+    """把文本变成向量（Embedding）。
+
+    ⚠️ 和 chat() 相比，只有【三处】不一样：
+        路径：     /embeddings              （不是 /chat/completions）
+        请求字段：  input                    （不是 messages）
+        取值：     data[0]["embedding"]     （不是 choices[0].message.content）
+    鉴权头、httpx.post 的写法 —— 【完全一样】。
+
+    传一个字符串     → 返回一个向量   list[float]      例如 [0.0123, -0.0456, ...]
+    传一个字符串列表 → 返回一组向量   list[list[float]]
+    """
+    if not EMB_BASE_URL or not EMB_API_KEY:
+        raise SystemExit(
+            "❌ 没读到 EMB_* 环境变量。\n"
+            "   检查 .env 里有没有这三行：EMB_BASE_URL / EMB_API_KEY / EMB_MODEL"
+        )
+
+    url = f"{EMB_BASE_URL}/embeddings"
+    headers = {
+        "Authorization": "Bearer " + EMB_API_KEY,
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "model": model or EMB_MODEL,
+        "input": text,
+    }
+
+    resp = httpx.post(url, headers=headers, json=payload, timeout=60)
+
+    if resp.status_code != 200:
+        print("❌ 请求失败，服务器原话是：")
+        print(resp.text)
+        raise SystemExit(1)
+
+    data = resp.json()
+
+    # 响应形状：{"data": [{"embedding": [...], "index": 0}, ...], "usage": {...}}
+    vectors = [item["embedding"] for item in data["data"]]
+
+    return vectors[0] if isinstance(text, str) else vectors
 
 
 def stream_chat(messages: list, temperature: float = 0, model: str | None = None,
@@ -132,6 +187,8 @@ def stream_chat(messages: list, temperature: float = 0, model: str | None = None
         timing = {}
 
     # httpx.stream 而不是 httpx.post：前者不把响应读完，而是让你一行一行地取
+    # with 会自动管理这个流：进入代码块时打开连接，离开时自动关闭连接，
+    # 即使中途报错也会清理资源；as resp 表示把流对象命名为 resp。
     with httpx.stream("POST", url, headers=headers, json=payload, timeout=120) as resp:
         if resp.status_code != 200:
             print("❌ 请求失败，服务器原话是：")
