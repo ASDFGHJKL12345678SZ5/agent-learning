@@ -25,3 +25,15 @@ llm_learn/assistant_history.json
 .idea/
 .DS_Store
 llm_learn/user_profile.json
+
+# ---- 第3阶段 RAG：安装缓存 / 临时目录 ----
+.pip_cache/
+.tmp/
+
+# ---- 第3阶段 RAG：素材文件（体积大，由 make_sample_pdf.py 本地生成）----
+rag_learn/data/*.pdf
+rag_learn/chroma_db/
+
+# ---- 第3阶段 RAG：生成的向量库（2MB+，随时能用 03 号脚本重建）----
+rag_learn/store.json
+rag_learn/docs/

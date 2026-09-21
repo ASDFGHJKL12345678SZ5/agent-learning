@@ -51,6 +51,26 @@ python student_manager.py
 
 ---
 
+## 🧭 环境地图（哪个目录用哪个 venv）
+
+| 目录 | 用哪个解释器 | 依赖清单 |
+|------|------|------|
+| `practice/` `todo_project/` `fastapi_app/` `async_learn/` `blog/` | 根目录 **`.venv`** | `requirements.txt` |
+| `llm_learn/` | `llm_learn/.venv` | `llm_learn/requirements.txt` |
+| `rag_learn/` | `rag_learn/.venv` | `rag_learn/requirements.txt` |
+
+- 每个 venv 另有一份 `requirements.lock.txt`：**完整锁定**（含所有间接依赖，分别 21 / 9 / 112 个包），换机器时用它 1:1 还原
+- ⚠️ `blog/requirements.txt` 是**给 `blog/Dockerfile` 容器构建用的**，和本地 venv 是两回事，别混
+- 三个 venv 都已写进 `.gitignore`（不进版本库）
+
+> 💡 **跑脚本一律用显式路径，不要 `activate`** —— 避免"以为在 A 环境，其实在 B 环境"：
+> ```powershell
+> & .\.venv\Scripts\python.exe -X utf8 脚本名.py
+> ```
+> 中文输出务必带 `-X utf8`（Windows 下不加会乱码）。
+
+---
+
 ## ✅ 关于这个仓库的约定
 
 - **每天至少一次英文 commit**（commit message 用英文）

@@ -45,8 +45,8 @@ python -m venv .venv
 .\.venv\Scripts\activate          # Windows
 # source .venv/bin/activate       # macOS / Linux
 
-# 2. 装依赖（只有两个第三方包）
-pip install httpx python-dotenv
+# 2. 装依赖（只有两个第三方包，清单见 requirements.txt）
+pip install -r requirements.txt
 
 # 3. 配密钥
 copy .env.example .env            # 然后填进你自己的 key

@@ -1,0 +1,12 @@
+# ============================================================
+# 第 2 阶段依赖（llm_learn/.venv 用）
+#
+# 这个 venv 故意保持"极简"：只有两个第三方包，见 llm_learn/README.md 的设计要点。
+# 用法：
+#     cd llm_learn
+#     .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+# 完整锁定版本见 llm_learn/requirements.lock.txt
+# ============================================================
+
+httpx==0.28.1
+python-dotenv==1.2.3

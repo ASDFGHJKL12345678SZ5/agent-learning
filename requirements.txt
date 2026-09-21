@@ -1,0 +1,14 @@
+# ============================================================
+# 第 1 阶段依赖（根目录 .venv 用）
+#
+# 覆盖目录：blog/  fastapi_app/  async_learn/  todo_project/  practice/
+# 用法：
+#     .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+# 完整锁定版本（含所有间接依赖）见 requirements.lock.txt
+# ============================================================
+
+fastapi==0.141.1
+uvicorn[standard]==0.53.0
+SQLAlchemy==2.0.54
+PyMySQL==1.2.3
+python-dotenv==1.2.3
