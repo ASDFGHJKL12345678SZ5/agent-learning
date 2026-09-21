@@ -1,0 +1,30 @@
+# ============================================================
+# 第 3 阶段依赖（rag_learn/.venv 用）
+#
+# 分层说明：
+#   手搓阶段（Day1-2）只需要前三个 —— 这也是为什么它们被单独放在最前面
+#   框架阶段（Day3 起）才需要 chromadb / langchain 那一坨（装完 400+ MB）
+#
+# 用法：
+#     cd rag_learn
+#     .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+# 完整锁定版本（112 个包）见 rag_learn/requirements.lock.txt
+# ============================================================
+
+# ---- 手搓阶段：加载 / 调 API ----
+pypdf==6.19.0            # 读 PDF（Day1）
+httpx==0.28.1            # 手搓 HTTP 调 LLM 与 Embedding（沿用第 2 阶段）
+python-dotenv==1.2.3     # 读 .env
+requests==2.34.2         # 官方示例里抓网页文档用
+
+# ---- 框架阶段：向量库 + LangChain ----
+chromadb==1.5.9                # 向量数据库（Day3）
+langchain==1.4.2               # 框架本体（Day4 起）
+langchain-core==1.6.3          # 底层抽象：Document / Embeddings / VectorStore
+langchain-text-splitters==1.1.2  # 分块器（对照 Day2 手写版）
+langchain-chroma==1.1.0        # Chroma 的 LangChain 适配
+langchain-community==0.4.2     # 社区集成
+langchain-openai==1.6.2        # ⚠️ 指向 DeepSeek 用的（DeepSeek 兼容 OpenAI 协议）
+
+# ⚠️ 版本提醒：LangChain 是 1.x，网上教程（含阶段计划里那条链接）大量还是 0.2/0.3 写法，
+#    `langchain.chains` / `RetrievalQA` 在 1.x 里已不存在，报 ImportError 先怀疑版本。
