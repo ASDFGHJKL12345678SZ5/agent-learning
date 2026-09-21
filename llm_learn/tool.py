@@ -133,7 +133,8 @@ def get_embedding(text: str | list[str], model: str | None = None) -> list:
 
 
 def stream_chat(messages: list, temperature: float = 0, model: str | None = None,
-                show_reasoning: bool = False, timing: dict | None = None) -> str:
+                show_reasoning: bool = False, timing: dict | None = None,
+                tools: list | None = None, capture: dict | None = None) -> str:
     """流式版：边生成边打印，实时看到文字一个个往外蹦。
 
     【和 chat() 的区别】
@@ -159,6 +160,14 @@ def stream_chat(messages: list, temperature: float = 0, model: str | None = None
         timing["ttft"]  → 首字延迟：从发出请求，到看见第一个正文字符，隔了多少秒
         timing["total"] → 总耗时
     这两个数就是流式最值钱的指标 —— 05_stream_vs_not.py 靠它做对比。
+
+    【tools 和 capture —— 流式下怎么用工具？】
+    传了 tools，模型才可能返回 tool_calls。但流式下它是【碎片】，不能直接读。
+
+    传一个空 dict 给 capture，函数会把这些塞进去：
+        capture["tool_calls"]    拼好的工具调用列表（可能为空）
+        capture["assistant_msg"] 一条可以【原样 append 进 messages】的 assistant 消息
+                                  （只有当真的请求了工具时才有）
     """
     if not API_KEY or not BASE_URL:
         raise SystemExit("❌ 没读到环境变量。检查 .env 是不是和本文件同目录、键名有没有拼错")
@@ -174,9 +183,14 @@ def stream_chat(messages: list, temperature: float = 0, model: str | None = None
         "temperature": temperature,
         "stream": True,          # ← 唯一的区别：告诉服务器"别攒着，有了就给我"
     }
+    if tools:
+        payload["tools"] = tools
 
     full_text = []
     in_reasoning = False
+    # 流式下 tool_calls 是【碎片】：id 只在第一块出现，name 可能分几块，
+    # arguments 会被切成很多小段。所以要按 index 一点点拼起来。
+    tool_acc = {}                # index -> {"id":..., "name":..., "arguments":...}
 
     # ---------- 计时：量两个关键指标 ----------
     # t0       请求发出的时刻
@@ -210,6 +224,19 @@ def stream_chat(messages: list, temperature: float = 0, model: str | None = None
 
             delta = chunk["choices"][0].get("delta", {})
 
+            # ---------- 累积 tool_calls 碎片（流式专用的处理）----------
+            for tc_delta in (delta.get("tool_calls") or []):
+                idx = tc_delta.get("index", 0)
+                slot = tool_acc.setdefault(
+                    idx, {"id": "", "name": "", "arguments": ""})
+                if tc_delta.get("id"):
+                    slot["id"] = tc_delta["id"]          # id 只出现一次
+                fn = tc_delta.get("function") or {}
+                if fn.get("name"):
+                    slot["name"] += fn["name"]           # 可能分几块
+                if fn.get("arguments"):
+                    slot["arguments"] += fn["arguments"] # 被切成很多小段
+
             # 推理模型的思考过程（普通模型没有这个字段）
             if show_reasoning and delta.get("reasoning_content"):
                 if not in_reasoning:
@@ -231,6 +258,30 @@ def stream_chat(messages: list, temperature: float = 0, model: str | None = None
 
     print()   # 收尾换行
     timing["total"] = time.perf_counter() - t0
+
+    # ---------- 把拼好的工具调用交出去 ----------
+    if capture is not None:
+        ordered = [tool_acc[i] for i in sorted(tool_acc)]
+        # ⭐ 转成和 chat() 返回的 tool_calls【完全一样的形状】：
+        #    {"id":..., "type":"function", "function": {"name":..., "arguments":...}}
+        #    这样 execute_tool(tc) 可以直接拿来用，不用为流式写第二套代码。
+        standard = [
+            {
+                "id": t["id"],
+                "type": "function",
+                "function": {"name": t["name"], "arguments": t["arguments"]},
+            }
+            for t in ordered
+        ]
+        capture["tool_calls"] = standard
+        if standard:
+            # 这就是【可以原样 append 进 messages】的那条 assistant 消息
+            capture["assistant_msg"] = {
+                "role": "assistant",
+                "content": "".join(full_text),
+                "tool_calls": standard,
+            }
+            
     return "".join(full_text)
 
 
