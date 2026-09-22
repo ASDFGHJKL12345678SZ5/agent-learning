@@ -246,6 +246,33 @@ class SimpleVectorStore:
 # ============================================================
 # 第 4 步：Chroma 对照（我写好了，你只管跑）
 # ============================================================
+# ============================================================
+# 身份证 → 人话（内部表示 vs 展示表示）
+# ============================================================
+def source_label(meta: dict) -> str:
+    """把身份证渲染成**给人看的人话**。
+
+        [来源：sample20.pdf 第 7 页]   ← PDF，有页码
+        [来源：rag_intro.txt]          ← TXT，没有页的概念（page 存的是 -1）
+
+    ⭐ 为什么必须单独渲染，不能直接拼 "-1 页"？
+       内部表示和展示表示是两件不同的事：
+         · 存库用 `page: -1` 编码"没有页" —— 一眼能判断，Chroma 也能按它过滤
+         · 但**给人看、给模型看**时必须是自然语言
+       实测踩过的坑：直接拼 "-1 页" 时，模型同一次运行里写了两套说法
+       （"第 -1 页" / "rag_intro.txt 第-1页"），甚至把 -1 圆场成"第 1 页"——
+       它在猜这个负数是什么意思。换成 [来源：rag_intro.txt] 之后引用立刻稳定了。
+
+    ⭐ 这个函数放在**定义 metadata 的模块里**（而不是每个用它的地方各写一份）——
+       谁定义数据结构，谁就负责它的渲染方式。
+    """
+    name = meta.get("source", "未知来源")
+    if meta.get("page", -1) < 0:
+        return f"[来源：{name}]"
+    return f"[来源：{name} 第{meta['page']}页]"
+
+
+# ============================================================
 def chroma_compare(chunks: list[str], vectors: list[list[float]],
                    metadatas: list[dict], queries: list[str]):
     """把同一批数据存进 Chroma，用同样的查询对比结果。
@@ -278,7 +305,7 @@ def chroma_compare(chunks: list[str], vectors: list[list[float]],
         print(f"\n  查询：{q}")
         for doc, dist, meta in zip(res["documents"][0], res["distances"][0],
                                    res["metadatas"][0]):
-            print(f"    sim={1 - dist:+.4f}  [第{meta.get('page')}页]  {doc[:45]!r}")
+            print(f"    sim={1 - dist:+.4f}  {source_label(meta)}  {doc[:45]!r}")
 
 
 # ============================================================
@@ -304,7 +331,7 @@ def main():
     for q in queries:
         print(f"\n  查询：{q}")
         for score, chunk, meta in store.search(q, top_k=3):
-            print(f"    sim={score:+.4f}  [第{meta['page']}页]  {chunk[:45]!r}")
+            print(f"    sim={score:+.4f}  {source_label(meta)}  {chunk[:45]!r}")
 
     # 存盘 + 读回来验证
     path = DATA_DIR.parent / "store.json"
