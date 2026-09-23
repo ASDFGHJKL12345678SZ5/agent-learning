@@ -170,7 +170,6 @@ def answer_with_history(store, history: list[dict], question: str,
         standalone = condense_question(history, question)
     else:
         standalone = question
-        1
 
     hits = store.search(standalone, top_k=k)
     messages = _day4.build_prompt(standalone, hits)

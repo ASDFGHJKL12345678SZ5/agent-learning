@@ -58,7 +58,13 @@ def chunk_pdf(pdf_path: Path, size: int = 400, overlap: int = 80) -> list[dict]:
         ③ source 用 pdf_path.name（文件名），page 用真实页码，start_index = j * (size - overlap)
         ④ 空块过滤（Day1 那两页图/表页的教训）
     """
-    raise NotImplementedError("TODO(1)：还没写")
+    path = Path(pdf_path)     
+    chunks = []
+    for page in day3.load_pdf_pages(path):      # 直接遍历 dict，不用 enumerate
+        chunks.extend(
+            day3._chunks_from_text(page["text"], path.name, page["page"], size, overlap)
+        )
+    return chunks
 
 
 def ingest_pdf(pdf_path: str | Path, collection_name: str = DEFAULT_COLLECTION) -> dict:
@@ -83,8 +89,20 @@ def ingest_pdf(pdf_path: str | Path, collection_name: str = DEFAULT_COLLECTION) 
            )
     返回：{"collection": 名字, "chunks": 块数, "pages": 页数}
     """
-    raise NotImplementedError("TODO(2)：还没写")
+    chunks = chunk_pdf(pdf_path)
+    texts = [c["text"] for c in chunks]
+    vectors = day3.embed_in_batches(texts)
+    col = get_collection(collection_name)
+    col.add(
+        ids=[f"{c['source']}_{c['page']}_{c['start_index']}" for c in chunks],
+        documents=texts,
+        embeddings=vectors,
+        metadatas=[{"source": c["source"], "page": c["page"],
+                    "start_index": c["start_index"]} for c in chunks],
+    )
+    return {"collection": collection_name, "chunks": len(chunks), "pages": len(set(c["page"] for c in chunks))}
 
+    
 
 def collection_stats(name: str = DEFAULT_COLLECTION) -> dict:
     """看一下库里现在有什么。我写好了 —— 方便你随时确认索引进去了。"""

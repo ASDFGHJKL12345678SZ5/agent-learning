@@ -14,6 +14,8 @@
     仍然是 [(分数, 文本, 身份证), ...]，这样 build_prompt 才能直接吃。
 """
 
+import ingest      # ⚠️ search() 里要用它拿集合（我第一版漏了这行，才导致 NameError）
+
 from common import (DEFAULT_COLLECTION, build_prompt, chat, day3, day4, day6,
                     get_embedding, source_label)
 
@@ -41,7 +43,15 @@ def search(question: str, k: int = 5, collection_name: str = DEFAULT_COLLECTION)
              身份证 = meta
            组装成 (相似度, 文本, 身份证)，再按相似度**从大到小**排
     """
-    raise NotImplementedError("TODO(3)：还没写")
+    qv = get_embedding(question)
+    col  = ingest.get_collection(collection_name)
+    res = col.query(query_embeddings=[qv],n_results=k,include=["documents","distances","metadatas"])
+    distances = res["distances"][0]
+    documents = res["documents"][0]
+    metadatas = res["metadatas"][0] 
+    return sorted([(1 - dist, doc, meta) for dist, doc, meta in zip(distances, documents, metadatas)], reverse=True)
+
+
 
 
 def answer(question: str, history: list[dict] | None = None,
@@ -62,7 +72,13 @@ def answer(question: str, history: list[dict] | None = None,
     ⭐ Day6 你已经写过一遍了 —— **这里不要重新发明**，照着那次的思路写。
        区别只有一个：检索从"手搓库"换成了"Chroma"。
     """
-    raise NotImplementedError("TODO(4)：还没写")
+    standalone = day6.condense_question(history or [], question) if use_condense else question
+    hits = search(standalone, k=k, collection_name=collection_name)
+    messages = build_prompt(standalone, hits)
+    messages[0]["content"] += "\n\n<对话历史>\n" + day6.format_history(history or []) + "\n</对话历史>"
+    data = chat(messages)
+    answer_text = data["choices"][0]["message"]["content"]
+    return {"question": question, "standalone": standalone, "hits": hits, "answer": answer_text}
 
 
 def answer_stream(question: str, history: list[dict] | None = None,

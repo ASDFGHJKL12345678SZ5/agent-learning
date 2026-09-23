@@ -83,3 +83,20 @@ async def ask_with_upload(file: UploadFile = File(...), question: str = ""):
     """上传并立刻提问（一步到位，适合"我就想快速试一下"）。"""
     await upload(file)
     return ask(AskRequest(question=question))
+
+
+if __name__ == "__main__":
+    # ⭐ 加了这一段，"python kb\server.py" 就能直接起服务，不用记 uvicorn 的模块路径。
+    #
+    #    为什么要加？
+    #    因为 `uvicorn kb.server:app` 那条命令**要求当前目录必须是 rag_learn** ——
+    #    它靠"当前目录在 sys.path 里"才找得到 kb 这个包 / 目录。
+    #    如果在 kb 目录里执行，就会报：
+    #        ModuleNotFoundError: No module named 'kb'
+    #
+    #    这里用 uvicorn.run(app, ...) 直接传 **app 对象**（而不是 "模块:属性" 字符串），
+    #    完全绕开模块路径问题 —— **在哪个目录跑都行**。
+    #    （代价：不能用 --reload 自动重载；要热重载就用命令行那条）
+    import uvicorn
+
+    uvicorn.run(app, host="127.0.0.1", port=8000)
