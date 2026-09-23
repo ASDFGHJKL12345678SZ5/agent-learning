@@ -79,52 +79,57 @@ TEST_SET = [
 ]
 
 
-# 负样本（expect=None，语料里本来就没有答案）怎么算"答对"？
-#   只有**所有块的分数都低于这个阈值**，才算"正确地没捞到东西"。
-#   ⚠️ 这个值本身别拍脑袋 —— 它就是你 TODO(3) 要调的那个 min_score。
-REJECT_SCORE = 0.45
+# ⭐ 阈值只能有一个（这条是你自己发现的，很关键）
+#
+#   之前我写了两个值：判定拒答用 REJECT_SCORE=0.45、过滤低分块用 min_score=0.30，
+#   这会造成荒唐情形：0.30~0.45 之间的块**被喂给了模型**，而评测却认为
+#   "这道题本该拒答" —— **你测的和你跑的不是同一个系统**，评测就失去意义了。
+#
+#   所以统一成一个 MIN_SCORE：既是过滤标准，也是"该不该拒答"的标准。
+#   它的含义是：**低于这个分数 = 不相关**。
+MIN_SCORE = 0.30
 
 
-def _is_hit(hits, expect, reject_score: float = REJECT_SCORE) -> bool:
-    """判定一次检索是否"正确"。
+def _is_hit(kept, expect) -> bool:
+    """判定**过滤之后**剩下的块是否算"正确"。注意参数是 kept，不是原始 hits。
 
-    · expect 是文件名 → 该文件出现在结果里 = 命中（这就是 recall@k）
-    · expect 是 None  → 语料里根本没有答案。**只有当所有块都低于 reject_score**
-                        （没有任何一块"看起来相关"）才算正确的拒答。
+    · expect 是文件名 → 该文件还在 = 命中（recall@k）
+    · expect 是 None  → 语料里根本没有答案，**过滤后一条不剩** = 正确拒答
 
-    ⚠️ 我第一版把负样本写成 `expect not in sources`，而 None 永远不在字符串列表里
-       → **那两道题永远白送分**。指标定义错了，实验结论就会跟着错 ——
-       这是最隐蔽的一类 bug：程序不报错，只是结论不可信。
+    ⚠️ 我第一版的两个错都在这里：
+      ① 负样本写成 `expect not in sources`，而 None 永远不在字符串列表里 → 白送分
+      ② 判定用的阈值和过滤用的阈值不是一个值 → 测的和跑的不是一回事
     """
     if expect is None:
-        return not hits or max(s for s, _, _ in hits) < reject_score
-    return expect in [m["source"] for _, _, m in hits]
+        return len(kept) == 0
+    return expect in [m["source"] for _, _, m in kept]
 
 
-def evaluate(store, top_k: int, queries=None, verbose: bool = False) -> dict:
+def evaluate(store, top_k: int = 5, queries=None,
+             min_score: float = MIN_SCORE, verbose: bool = False) -> dict:
     """跑一遍测试集，返回指标。**我写好了，你不用改。**
 
-    指标定义（这就是工业界说的 recall@k）：
-        hit@k：正确来源出现在前 k 条里的题目占比
-        —— 注意是"来源命中"，不是"内容完全一致"。检索只要**捞对了文件**就算成功，
-           精不精准是后面 rerank 的事。
+    流程刻意和线上**完全一致**：先检索 → 再按 min_score 过滤 → 才判定对错。
+    这样测出来的数字才是"系统真实表现"，而不是"理想情况下的表现"。
 
-    为什么不用"相似度平均分"当指标？你 Day3 已经看到了：分数受块长度影响，
-    跨题不可比。而"有没有捞对"是**稳定、可重复**的。
+    指标（工业界的 recall@k）：
+        hit：正确答案**在过滤后还活着**的题目占比
     """
     queries = queries or TEST_SET
     hit, miss = 0, []
     for q, expect in queries:
-        hits = store.search(q, top_k=top_k)
-        ok = _is_hit(hits, expect)
+        raw = store.search(q, top_k=top_k)
+        kept = compress_hits(raw, min_score=min_score)
+        ok = _is_hit(kept, expect)
         if ok:
             hit += 1
         else:
-            miss.append((q, expect, sorted({m["source"] for _, _, m in hits})))
+            miss.append((q, expect, sorted({m["source"] for _, _, m in kept})))
         if verbose:
             flag = "✅" if ok else "❌"
-            print(f"    {flag} {q}   期望={expect}  实际={sorted({m['source'] for _, _, m in hits})}")
-    return {"k": top_k, "hit": hit, "total": len(queries),
+            print(f"    {flag} {q}   期望={expect}  "
+                  f"保留 {len(kept)}/{len(raw)} 块  来源={sorted({m['source'] for _, _, m in kept})}")
+    return {"k": top_k, "min_score": min_score, "hit": hit, "total": len(queries),
             "rate": hit / len(queries), "miss": miss}
 
 

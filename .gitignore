@@ -37,3 +37,6 @@ rag_learn/chroma_db/
 # ---- 第3阶段 RAG：生成的向量库（2MB+，随时能用 03 号脚本重建）----
 rag_learn/store.json
 rag_learn/docs/
+
+# ---- 第3阶段 RAG：对话历史（私有对话内容，别提交）----
+rag_learn/chat_history.json

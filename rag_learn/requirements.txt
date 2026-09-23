@@ -26,5 +26,9 @@ langchain-chroma==1.1.0        # Chroma 的 LangChain 适配
 langchain-community==0.4.2     # 社区集成
 langchain-openai==1.6.2        # ⚠️ 指向 DeepSeek 用的（DeepSeek 兼容 OpenAI 协议）
 
+# ---- Day7 服务版（给核心逻辑套一个 HTTP 壳）----
+fastapi==0.141.1               # HTTP 接口（uvicorn 已随 chromadb 装好，不用重复装）
+python-multipart==0.0.32       # FastAPI 处理文件上传（/upload）需要它
+
 # ⚠️ 版本提醒：LangChain 是 1.x，网上教程（含阶段计划里那条链接）大量还是 0.2/0.3 写法，
 #    `langchain.chains` / `RetrievalQA` 在 1.x 里已不存在，报 ImportError 先怀疑版本。
